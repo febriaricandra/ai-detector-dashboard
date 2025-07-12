@@ -2,17 +2,16 @@ import React, { useState } from 'react';
 import { Link } from 'react-router';
 import { Play, ChevronDown, Upload, Shield, FileText, BarChart3, Users } from 'lucide-react';
 
-const AIDetectorLanding = () => {
-    const [selectedFile, setSelectedFile] = useState(null);
-    const [analysisResult, setAnalysisResult] = useState(null);
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
+type AnalysisResult = {
+    aiPercentage: number;
+    humanPercentage: number;
+    reason: string;
+};
 
-    const handleFileUpload = (event) => {
-        const file = event.target.files[0];
-        if (file) {
-            setSelectedFile(file);
-        }
-    };
+const AIDetectorLanding = () => {
+    const [selectedFile, setSelectedFile] = useState<{ name: string; type: string; content: string; } | null>(null);
+    const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
 
     const handleAnalyze = () => {
         setIsAnalyzing(true);
@@ -28,7 +27,7 @@ const AIDetectorLanding = () => {
     };
 
     const handleSampleText = () => {
-        setSelectedFile({ name: "sample.txt", type: "text/plain" });
+        setSelectedFile({ name: "sample.txt", type: "text/plain", content: "This is a sample text for AI detection." });
     };
 
     const scrollToDetector = () => {
@@ -126,7 +125,6 @@ const AIDetectorLanding = () => {
                                     Sample Text
                                 </button>
                                 <button
-                                    onClick={() => document.getElementById('file-upload').click()}
                                     className="border border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
                                 >
                                     <Upload className="w-4 h-4" />

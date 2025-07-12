@@ -192,7 +192,7 @@ export default function BasicTableOne() {
         </Table>
       </div>
       <div className="p-4 border-t border-gray-100 dark:border-white/[0.05]">
-        <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+        <Badge>
           Total: {tableData.length} items
         </Badge>
       </div>
