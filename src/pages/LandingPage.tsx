@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { Play, ChevronDown, Upload, Shield, FileText, BarChart3, Users } from 'lucide-react';
 
