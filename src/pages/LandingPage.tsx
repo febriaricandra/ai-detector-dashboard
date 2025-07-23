@@ -1,36 +1,223 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link } from 'react-router';
 import { Play, ChevronDown, Upload, Shield, FileText, BarChart3, Users } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
+import Api from '../utils/Api';
+
+interface ApiError {
+    response?: {
+        status?: number;
+        data?: {
+            message?: string;
+        };
+    };
+    message?: string;
+}
 
 type AnalysisResult = {
     aiPercentage: number;
     humanPercentage: number;
     reason: string;
+    prediction: string;
+    confidence: {
+        ai_probability: number;
+        human_probability: number;
+    };
 };
 
 const AIDetectorLanding = () => {
     const { user } = useAuth();
-    const [selectedFile, setSelectedFile] = useState<{ name: string; type: string; content: string; } | null>(null);
+    const [textInput, setTextInput] = useState<string>('');
     const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [error, setError] = useState<string>('');
+    const [uploadedFileName, setUploadedFileName] = useState<string>('');
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleAnalyze = () => {
+    const handleAnalyze = async () => {
+        if (!textInput.trim() || !user) {
+            setError('Please login and provide text to analyze');
+            return;
+        }
+
         setIsAnalyzing(true);
-        // Simulate analysis
-        setTimeout(() => {
-            setAnalysisResult({
-                aiPercentage: 22,
-                humanPercentage: 78,
-                reason: "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s."
+        setError('');
+
+        try {
+            const response = await Api.post('/analysis-results', {
+                data: textInput.trim()
             });
+
+            // Transform response data to match our AnalysisResult interface
+            const aiPercentage = Math.round((response.data.flask_confidence?.ai_probability || 0) * 100);
+            const humanPercentage = 100 - aiPercentage;
+
+            // Extract reason from gemini_analysis if available
+            let reason = "Analysis completed successfully";
+            if (response.data.gemini_analysis?.analysis) {
+                try {
+                    // Try to parse the Gemini analysis to get conclusion
+                    const analysisText = response.data.gemini_analysis.analysis;
+                    const jsonMatch = analysisText.match(/```json\n([\s\S]*?)\n```/);
+                    if (jsonMatch) {
+                        const parsedAnalysis = JSON.parse(jsonMatch[1]);
+                        reason = parsedAnalysis.conclusion?.confidence_explanation || reason;
+                    }
+                } catch (parseError) {
+                    console.warn('Could not parse Gemini analysis:', parseError);
+                }
+            }
+
+            setAnalysisResult({
+                aiPercentage,
+                humanPercentage,
+                reason,
+                prediction: response.data.flask_prediction,
+                confidence: response.data.flask_confidence
+            });
+
+        } catch (err: unknown) {
+            const apiError = err as ApiError;
+            console.error('Analysis error:', err);
+
+            if (apiError.response?.status === 401) {
+                setError('Please login to use the AI detector');
+            } else if (apiError.response?.status === 500) {
+                setError('Server error. Please try again later.');
+            } else if (apiError.response?.data?.message) {
+                setError(apiError.response.data.message);
+            } else if (apiError.message) {
+                setError(apiError.message);
+            } else {
+                setError('Analysis failed. Please try again.');
+            }
+        } finally {
             setIsAnalyzing(false);
-        }, 2000);
+        }
+    };
+
+
+
+    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !user) {
+            if (!user) {
+                setError('Please login to upload files');
+            }
+            return;
+        }
+
+        // Validate file type
+        if (file.type !== 'application/pdf') {
+            setError('Please upload a PDF file only');
+            return;
+        }
+
+        // Reduce file size limit to 2MB to avoid server limits
+        const maxSize = 2 * 1024 * 1024; // 2MB instead of 5MB
+        if (file.size > maxSize) {
+            setError('File size must be less than 2MB');
+            return;
+        }
+
+        setIsAnalyzing(true);
+        setError('');
+        setUploadedFileName(file.name);
+
+        try {
+            // Create FormData for file upload
+            const formData = new FormData();
+            formData.append('file', file);
+
+            console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
+
+            // Make the API call with explicit multipart form data handling
+            const response = await Api.post('/analysis-results/analyze-text-pdf', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+                timeout: 60000, // 60 seconds timeout
+            });
+
+            console.log('Upload response:', response.data);
+
+            // Transform response data to match our AnalysisResult interface
+            const aiPercentage = Math.round((response.data.flask_confidence?.ai_probability || 0) * 100);
+            const humanPercentage = 100 - aiPercentage;
+
+            // Extract reason from gemini_analysis if available
+            let reason = "PDF analysis completed successfully";
+            if (response.data.gemini_analysis?.analysis) {
+                try {
+                    // Try to parse the Gemini analysis to get conclusion
+                    const analysisText = response.data.gemini_analysis.analysis;
+                    const jsonMatch = analysisText.match(/```json\n([\s\S]*?)\n```/);
+                    if (jsonMatch) {
+                        const parsedAnalysis = JSON.parse(jsonMatch[1]);
+                        reason = parsedAnalysis.conclusion?.confidence_explanation || reason;
+                    }
+                } catch (parseError) {
+                    console.warn('Could not parse Gemini analysis:', parseError);
+                }
+            }
+
+            // Set the extracted text to display in textarea
+            if (response.data.text) {
+                setTextInput(response.data.text);
+            }
+
+            setAnalysisResult({
+                aiPercentage,
+                humanPercentage,
+                reason,
+                prediction: response.data.flask_prediction,
+                confidence: response.data.flask_confidence
+            });
+
+        } catch (err: unknown) {
+            const apiError = err as ApiError;
+            console.error('PDF Analysis error:', err);
+
+            if (apiError.response?.status === 401) {
+                setError('Please login to upload and analyze files');
+            } else if (apiError.response?.status === 413) {
+                setError('File too large. Please upload a file smaller than 2MB');
+            } else if (apiError.response?.status === 400) {
+                setError(apiError.response.data?.message || 'Invalid file. Please check if the file is a valid PDF');
+            } else if (apiError.response?.status === 500) {
+                setError('Server error during PDF analysis. Please try again later.');
+            } else if (apiError.response?.data?.message) {
+                setError(apiError.response.data.message);
+            } else if (apiError.message?.includes('timeout')) {
+                setError('Upload timeout. Please try with a smaller file.');
+            } else if (apiError.message) {
+                setError(apiError.message);
+            } else {
+                setError('PDF analysis failed. Please try again.');
+            }
+        } finally {
+            setIsAnalyzing(false);
+            // Reset file input
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    };
+
+
+    const handleUploadClick = () => {
+        if (!user) {
+            setError('Please login to upload files');
+            return;
+        }
+        fileInputRef.current?.click();
     };
 
     const handleSampleText = () => {
-        setSelectedFile({ name: "sample.txt", type: "text/plain", content: "This is a sample text for AI detection." });
+        const sampleText = "Artificial intelligence (AI) is revolutionizing various industries by automating processes, enhancing decision-making, and improving efficiency. Machine learning algorithms can analyze vast amounts of data to identify patterns and make predictions. Natural language processing enables computers to understand and generate human-like text. Deep learning networks, inspired by the human brain, can perform complex tasks such as image recognition and language translation.";
+        setTextInput(sampleText);
+        setUploadedFileName(''); // Clear uploaded file name when using sample text
     };
 
     const scrollToDetector = () => {
@@ -132,28 +319,63 @@ const AIDetectorLanding = () => {
                         <div className="bg-white rounded-xl h-full shadow-lg p-8 border border-gray-200">
                             <h2 className="text-2xl font-bold text-gray-900 mb-6">AI Detector</h2>
 
+                            {/* Error Message */}
+                            {error && (
+                                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6">
+                                    <p className="text-sm">{error}</p>
+                                </div>
+                            )}
+
+                            {/* Login Notice for Non-authenticated Users */}
+                            {!user && (
+                                <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-md mb-6">
+                                    <p className="text-sm">
+                                        Please{' '}
+                                        <Link to="/signin" className="font-medium underline hover:text-yellow-800">
+                                            login
+                                        </Link>
+                                        {' '}to use the AI detector feature.
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Uploaded File Name */}
+                            {uploadedFileName && (
+                                <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md mb-6">
+                                    <p className="text-sm">
+                                        <strong>Uploaded file:</strong> {uploadedFileName}
+                                    </p>
+                                </div>
+                            )}
+
                             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 mb-6">
                                 <textarea
-                                    placeholder="Paste your text here to detect AI content..."
+                                    placeholder="Paste your text here to detect AI content, or upload a PDF file..."
                                     className="w-full h-40 p-4 border-0 resize-none focus:outline-none text-gray-700 placeholder-gray-400"
+                                    value={textInput}
                                     onChange={(e) => {
-                                        if (e.target.value.trim()) {
-                                            setSelectedFile({
-                                                name: "text-input",
-                                                type: "text/plain",
-                                                content: e.target.value
-                                            });
-                                        } else {
-                                            setSelectedFile(null);
-                                        }
+                                        setTextInput(e.target.value);
+                                        // Clear previous results and errors when text changes
+                                        setAnalysisResult(null);
+                                        setError('');
+                                        setUploadedFileName(''); // Clear uploaded file name when typing
                                     }}
                                 />
                             </div>
 
+                            {/* Hidden file input */}
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept=".pdf"
+                                onChange={handleFileUpload}
+                                className="hidden"
+                            />
+
                             <div className="flex flex-wrap gap-3">
                                 <button
                                     onClick={handleAnalyze}
-                                    disabled={!selectedFile || isAnalyzing}
+                                    disabled={!textInput.trim() || isAnalyzing || !user}
                                     className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
                                 >
                                     <Shield className="w-4 h-4" />
@@ -162,17 +384,31 @@ const AIDetectorLanding = () => {
 
                                 <button
                                     onClick={handleSampleText}
-                                    className="border border-blue-600 text-blue-600 hover:bg-blue-50 px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                                    disabled={isAnalyzing}
+                                    className="border border-blue-600 text-blue-600 hover:bg-blue-50 disabled:opacity-50 px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
                                 >
                                     <FileText className="w-4 h-4" />
                                     Sample Text
                                 </button>
+
                                 <button
-                                    className="border border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                                    onClick={handleUploadClick}
+                                    disabled={isAnalyzing || !user}
+                                    className="border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
                                 >
                                     <Upload className="w-4 h-4" />
-                                    Upload File
+                                    {isAnalyzing ? 'Processing...' : 'Upload PDF'}
                                 </button>
+                            </div>
+
+                            {/* Word Count and File Info */}
+                            <div className="mt-4 text-sm text-gray-500 flex justify-between">
+                                {textInput.trim() && (
+                                    <span>Word count: {textInput.trim().split(/\s+/).length}</span>
+                                )}
+                                <span className="text-xs text-gray-400">
+                                    Supported: PDF files (max 10MB)
+                                </span>
                             </div>
                         </div>
 
@@ -187,7 +423,14 @@ const AIDetectorLanding = () => {
                                 </button>
                             </div>
 
-                            {analysisResult ? (
+                            {isAnalyzing ? (
+                                <div className="text-center py-12">
+                                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                                    <p className="text-gray-500">
+                                        {uploadedFileName ? 'Processing PDF and analyzing text...' : 'Analyzing text...'}
+                                    </p>
+                                </div>
+                            ) : analysisResult ? (
                                 <div>
                                     <p className="text-blue-600 font-medium mb-6">Show Percentage of Text Analysis</p>
 
@@ -208,7 +451,7 @@ const AIDetectorLanding = () => {
                                                     cy="50"
                                                     r="35"
                                                     fill="none"
-                                                    stroke="#3b82f6"
+                                                    stroke="#10b981"
                                                     strokeWidth="8"
                                                     strokeDasharray={`${analysisResult.humanPercentage * 2.2} 220`}
                                                     strokeLinecap="round"
@@ -218,7 +461,7 @@ const AIDetectorLanding = () => {
                                                     cy="50"
                                                     r="35"
                                                     fill="none"
-                                                    stroke="#06b6d4"
+                                                    stroke="#ef4444"
                                                     strokeWidth="8"
                                                     strokeDasharray={`${analysisResult.aiPercentage * 2.2} 220`}
                                                     strokeDashoffset={`${-analysisResult.humanPercentage * 2.2}`}
@@ -230,11 +473,11 @@ const AIDetectorLanding = () => {
                                         {/* Percentages */}
                                         <div className="flex flex-row">
                                             <div className="flex mb-4">
-                                                <div className="bg-blue-100 rounded-lg p-4 flex flex-col items-center mr-4">
-                                                    <p className="text-xl text-blue-700 my-auto font-semibold">
+                                                <div className="bg-red-100 rounded-lg p-4 flex flex-col items-center mr-4">
+                                                    <p className="text-xl text-red-700 my-auto font-semibold">
                                                         {analysisResult.aiPercentage}%
                                                     </p>
-                                                    <h2 className="text-lg font-bold text-blue-900">AI Generated</h2>
+                                                    <h2 className="text-lg font-bold text-red-900">AI Generated</h2>
                                                 </div>
                                                 <div className="bg-green-100 rounded-lg p-4 flex flex-col items-center">
                                                     <p className="text-xl text-green-700 my-auto font-semibold">
@@ -246,16 +489,28 @@ const AIDetectorLanding = () => {
                                         </div>
                                     </div>
 
+                                    {/* Prediction Badge */}
+                                    <div className="flex justify-center mb-4">
+                                        <div className={`px-4 py-2 rounded-full font-medium ${analysisResult.prediction === 'AI'
+                                            ? 'bg-red-100 text-red-800'
+                                            : 'bg-green-100 text-green-800'
+                                            }`}>
+                                            Prediction: {analysisResult.prediction}
+                                        </div>
+                                    </div>
+
                                     <div className="bg-gray-50 rounded-lg p-4">
                                         <p className="text-sm text-gray-700">
-                                            <span className="font-semibold">Reason:</span> {analysisResult.reason}
+                                            <span className="font-semibold">Analysis Summary:</span> {analysisResult.reason}
                                         </p>
                                     </div>
                                 </div>
                             ) : (
                                 <div className="text-center py-12">
                                     <BarChart3 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                                    <p className="text-gray-500">Upload a file and click analyze to see results</p>
+                                    <p className="text-gray-500">
+                                        {user ? "Enter text, upload PDF, or click analyze to see results" : "Login to start analyzing text"}
+                                    </p>
                                 </div>
                             )}
                         </div>
@@ -274,12 +529,15 @@ const AIDetectorLanding = () => {
                         can unlock long-term value and drive economic growth.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                        <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2">
+                        <Link
+                            to="/signin"
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                        >
                             Login
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                             </svg>
-                        </button>
+                        </Link>
                         <button className="border border-gray-300 text-gray-700 hover:bg-gray-50 px-8 py-3 rounded-lg font-medium transition-colors">
                             Learn more
                         </button>
