@@ -21,9 +21,12 @@ import Home from "./pages/Dashboard/Home";
 import LandingPage from "./pages/LandingPage";
 import TextGenerated from "./pages/Text/TextGenerated";
 
+import { AuthProvider } from "./pages/context/AuthContext";
+
 export default function App() {
   return (
     <>
+    <AuthProvider>
       <Router>
         <ScrollToTop />
         <Routes>
@@ -69,6 +72,7 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
+    </AuthProvider>
     </>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { Play, ChevronDown, Upload, Shield, FileText, BarChart3, Users } from 'lucide-react';
+import { useAuth } from './context/AuthContext';
 
 type AnalysisResult = {
     aiPercentage: number;
@@ -9,9 +10,11 @@ type AnalysisResult = {
 };
 
 const AIDetectorLanding = () => {
+    const { user } = useAuth();
     const [selectedFile, setSelectedFile] = useState<{ name: string; type: string; content: string; } | null>(null);
     const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     const handleAnalyze = () => {
         setIsAnalyzing(true);
@@ -50,11 +53,51 @@ const AIDetectorLanding = () => {
                             <a href="#detector" className="text-gray-700 hover:text-blue-600 font-medium">AI Detector</a>
                             <a href="#about" className="text-gray-700 hover:text-blue-600 font-medium">About</a>
                         </div>
-                        <div className="flex items-center space-x-4">
-                            <Link to="/signup" className="text-gray-700 hover:text-blue-600 font-medium">Register</Link>
-                            <Link to="/signin" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
-                                Login
-                            </Link>
+                        <div className="hidden md:flex items-center space-x-4">
+                            {user ? (
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                        className="flex items-center space-x-2 text-gray-700 hover:text-blue-600"
+                                    >
+                                        <span>{user.username}</span>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </button>
+                                    {isDropdownOpen && (
+                                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+                                            <Link
+                                                to="/dashboard"
+                                                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                                onClick={() => setIsDropdownOpen(false)}
+                                            >
+                                                Dashboard
+                                            </Link>
+                                            <button
+                                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                            >
+                                                Logout
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="flex items-center space-x-4">
+                                    <Link
+                                        to="/signin"
+                                        className="text-gray-700 hover:text-blue-600 font-medium"
+                                    >
+                                        Login
+                                    </Link>
+                                    <Link
+                                        to="/signup"
+                                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                                    >
+                                        Sign Up
+                                    </Link>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

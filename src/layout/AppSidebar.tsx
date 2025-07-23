@@ -33,7 +33,7 @@ const navItems: NavItem[] = [
   },
   {
     icon: <BoxCubeIcon />,
-    name: "App Setting",
+    name: "Profile",
     path: "/profile",
   },
   // {
