@@ -3,6 +3,18 @@ import { Link, useNavigate } from "react-router";
 import Button from "../ui/button/Button";
 import Api from "../../utils/Api";
 
+interface ApiError {
+  response?: {
+    status?: number;
+    data?: {
+      message?: string;
+      errors?: Record<string, string[]>;
+    };
+  };
+  message?: string;
+  code?: string;
+}
+
 export default function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -102,27 +114,29 @@ export default function SignUpForm() {
         }, 2000);
       }
       
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Registration error:', err);
       
+      const apiError = err as ApiError;
+      
       // Handle different error scenarios
-      if (err.code === 'ERR_NETWORK' || err.message?.includes('CORS')) {
+      if (apiError.code === 'ERR_NETWORK' || apiError.message?.includes('CORS')) {
         setError('Network error. Please check your connection or contact support.');
-      } else if (err.response?.status === 422) {
+      } else if (apiError.response?.status === 422) {
         // Validation errors
-        const errors = err.response.data.errors;
+        const errors = apiError.response.data?.errors;
         if (errors) {
           const errorMessages = Object.values(errors).flat();
           setError(errorMessages.join(', '));
         } else {
-          setError(err.response.data.message || 'Please check your input data');
+          setError(apiError.response.data?.message || 'Please check your input data');
         }
-      } else if (err.response?.status === 409) {
+      } else if (apiError.response?.status === 409) {
         setError('Email already exists. Please use a different email address.');
-      } else if (err.response?.data?.message) {
-        setError(err.response.data.message);
-      } else if (err.message) {
-        setError(err.message);
+      } else if (apiError.response?.data?.message) {
+        setError(apiError.response.data.message);
+      } else if (apiError.message) {
+        setError(apiError.message);
       } else {
         setError('Registration failed. Please try again.');
       }
@@ -294,7 +308,6 @@ export default function SignUpForm() {
 
         <div>
           <Button
-            type="submit"
             className="w-full"
             disabled={isLoading}
           >
