@@ -401,7 +401,7 @@ export default function BasicTableOne() {
               {/* Gemini Analysis */}
               {selectedResult.gemini_analysis && (
                 <div>
-                  <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Gemini Analysis</h4>
+                  <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Analysis</h4>
                   {(() => {
                     const parsedAnalysis = parseGeminiAnalysis(selectedResult.gemini_analysis.analysis);
                     if (!parsedAnalysis) {
