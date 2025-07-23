@@ -8,15 +8,17 @@ import {
   TableRow,
 } from "../../ui/table";
 import Badge from "../../ui/badge/Badge";
+import { Modal } from "../../ui/modal";
+import { useModal } from "../../../hooks/useModal";
 
-// Updated interface to match your API model
+// Updated interface to match your actual API model
 interface AnalysisResultData {
   id: number;
   text: string;
   flask_prediction: string;
   flask_confidence: {
-    ai_probability: number;
-    human_probability: number;
+    ai: number; // Changed from ai_probability to ai
+    human: number; // Changed from human_probability to human
   };
   gemini_analysis: {
     analysis: string; // This contains the JSON string with detailed analysis
@@ -59,7 +61,9 @@ export default function BasicTableOne() {
   const [error, setError] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [selectedResult, setSelectedResult] = useState<AnalysisResultData | null>(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
+
+  // Use the custom modal hook
+  const { isOpen: showDetailModal, openModal, closeModal } = useModal();
 
   useEffect(() => {
     const fetchAnalysisResults = async () => {
@@ -93,12 +97,12 @@ export default function BasicTableOne() {
 
   const handleViewDetails = (result: AnalysisResultData) => {
     setSelectedResult(result);
-    setShowDetailModal(true);
+    openModal();
     handleMenuClose();
   };
 
   const handleCloseModal = () => {
-    setShowDetailModal(false);
+    closeModal();
     setSelectedResult(null);
   };
 
@@ -117,12 +121,15 @@ export default function BasicTableOne() {
     }
   };
 
-  // Helper function to get AI percentage from flask confidence
-  const getAIPercentage = (confidence: { ai_probability: number }) => {
-    if (confidence && confidence.ai_probability) {
-      return Math.round(confidence.ai_probability * 100);
+  // Helper function to get AI and Human percentages from flask confidence
+  const getConfidencePercentages = (confidence: { ai: number; human: number }) => {
+    if (confidence && confidence.ai !== undefined && confidence.human !== undefined) {
+      return {
+        ai: Math.round(confidence.ai * 100),
+        human: Math.round(confidence.human * 100)
+      };
     }
-    return 0;
+    return { ai: 0, human: 0 };
   };
 
   // Helper function to truncate text
@@ -186,7 +193,7 @@ export default function BasicTableOne() {
                   isHeader
                   className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                 >
-                  AI Probability
+                  AI / Human Probability
                 </TableCell>
                 <TableCell
                   isHeader
@@ -213,10 +220,10 @@ export default function BasicTableOne() {
                 </TableRow>
               ) : (
                 analysisResults.map((result) => {
-                  const aiPercentage = getAIPercentage(result.flask_confidence);
+                  const percentages = getConfidencePercentages(result.flask_confidence);
                   const wordCount = countWords(result.text);
                   const createdDate = new Date(result.createdAt).toLocaleDateString();
-                  
+
                   return (
                     <TableRow key={result.id}>
                       <TableCell className="px-5 py-4 sm:px-6 text-start">
@@ -233,19 +240,28 @@ export default function BasicTableOne() {
                         {wordCount}
                       </TableCell>
                       <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                        <div className="flex items-center gap-2">
-                          <span>{aiPercentage}%</span>
-                          <div className="w-24 bg-gray-200 rounded-full h-2 dark:bg-gray-700">
-                            <div
-                              className={`h-2 rounded-full ${
-                                aiPercentage >= 80
-                                  ? "bg-red-500"
-                                  : aiPercentage >= 50
-                                  ? "bg-yellow-500"
-                                  : "bg-green-500"
-                              }`}
-                              style={{ width: `${aiPercentage}%` }}
-                            ></div>
+                        <div className="space-y-2">
+                          {/* AI Probability */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-red-600 w-8">AI:</span>
+                            <span className="text-xs font-semibold w-10">{percentages.ai}%</span>
+                            <div className="w-16 bg-gray-200 rounded-full h-1.5 dark:bg-gray-700">
+                              <div
+                                className="bg-red-500 h-1.5 rounded-full"
+                                style={{ width: `${percentages.ai}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                          {/* Human Probability */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-green-600 w-8">Human:</span>
+                            <span className="text-xs font-semibold w-10">{percentages.human}%</span>
+                            <div className="w-16 bg-gray-200 rounded-full h-1.5 dark:bg-gray-700">
+                              <div
+                                className="bg-green-500 h-1.5 rounded-full"
+                                style={{ width: `${percentages.human}%` }}
+                              ></div>
+                            </div>
                           </div>
                         </div>
                       </TableCell>
@@ -312,48 +328,72 @@ export default function BasicTableOne() {
         </div>
       </div>
 
-      {/* Detail Modal */}
-      {showDetailModal && selectedResult && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+
+      <Modal
+        isOpen={showDetailModal}
+        onClose={handleCloseModal}
+        className="max-w-6xl mx-4 max-h-[90vh]"
+      >
+        {selectedResult && (
+          <div className="flex flex-col max-h-[90vh]">
+            {/* Modal Header - Fixed */}
+            <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
                 Analysis Details
               </h3>
-              <button
-                onClick={handleCloseModal}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
             </div>
-            
-            <div className="p-6 space-y-6">
+
+            {/* Modal Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 min-h-0">
               {/* Original Text */}
               <div>
-                <h4 className="text-md font-medium text-gray-900 dark:text-white mb-2">Original Text</h4>
-                <p className="text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                  {selectedResult.text}
-                </p>
+                <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Original Text</h4>
+                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                    {selectedResult.text}
+                  </p>
+                </div>
               </div>
 
               {/* Flask Analysis */}
               <div>
-                <h4 className="text-md font-medium text-gray-900 dark:text-white mb-2">Flask Analysis</h4>
+                <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Flask Analysis</h4>
                 <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-700 dark:text-gray-300">Prediction:</span>
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-gray-700 dark:text-gray-300 font-medium">Prediction:</span>
                     <Badge color={selectedResult.flask_prediction === 'AI' ? 'error' : 'success'}>
                       {selectedResult.flask_prediction}
                     </Badge>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-700 dark:text-gray-300">AI Probability:</span>
-                    <span className="text-gray-900 dark:text-white font-medium">
-                      {getAIPercentage(selectedResult.flask_confidence)}%
-                    </span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-700 dark:text-gray-300">AI Probability:</span>
+                        <span className="text-red-600 dark:text-red-400 font-bold text-lg">
+                          {getConfidencePercentages(selectedResult.flask_confidence).ai}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-600">
+                        <div
+                          className="bg-red-500 h-3 rounded-full transition-all duration-300"
+                          style={{ width: `${getConfidencePercentages(selectedResult.flask_confidence).ai}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-700 dark:text-gray-300">Human Probability:</span>
+                        <span className="text-green-600 dark:text-green-400 font-bold text-lg">
+                          {getConfidencePercentages(selectedResult.flask_confidence).human}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-600">
+                        <div
+                          className="bg-green-500 h-3 rounded-full transition-all duration-300"
+                          style={{ width: `${getConfidencePercentages(selectedResult.flask_confidence).human}%` }}
+                        ></div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -361,7 +401,7 @@ export default function BasicTableOne() {
               {/* Gemini Analysis */}
               {selectedResult.gemini_analysis && (
                 <div>
-                  <h4 className="text-md font-medium text-gray-900 dark:text-white mb-2">Gemini Analysis</h4>
+                  <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Gemini Analysis</h4>
                   {(() => {
                     const parsedAnalysis = parseGeminiAnalysis(selectedResult.gemini_analysis.analysis);
                     if (!parsedAnalysis) {
@@ -375,78 +415,138 @@ export default function BasicTableOne() {
                     }
 
                     return (
-                      <div className="space-y-4">
+                      <div className="space-y-6">
                         {/* Linguistic Indicators */}
                         <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                          <h5 className="font-medium text-gray-900 dark:text-white mb-2">Linguistic Indicators</h5>
-                          {parsedAnalysis.linguistic_indicators.map((indicator, index) => (
-                            <div key={index} className="mb-3 last:mb-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-medium text-gray-800 dark:text-gray-200">
-                                  {indicator.pattern}
-                                </span>
-                                <Badge 
-                                  color={indicator.ai_likelihood === 'rendah' ? 'success' : 'warning'}
-                                  size="sm"
-                                >
-                                  {indicator.ai_likelihood}
-                                </Badge>
+                          <h5 className="font-medium text-gray-900 dark:text-white mb-3">Linguistic Indicators</h5>
+                          <div className="space-y-4">
+                            {parsedAnalysis.linguistic_indicators.map((indicator, index) => (
+                              <div key={index} className="border-l-4 border-blue-500 pl-4">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <span className="font-medium text-gray-800 dark:text-gray-200">
+                                    {indicator.pattern}
+                                  </span>
+                                  <Badge
+                                    color={indicator.ai_likelihood === 'rendah' ? 'success' : indicator.ai_likelihood === 'tinggi' ? 'error' : 'warning'}
+                                    size="sm"
+                                  >
+                                    {indicator.ai_likelihood}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                                  {indicator.description}
+                                </p>
+                                {indicator.examples && indicator.examples.length > 0 && (
+                                  <div className="mt-2">
+                                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Examples: </span>
+                                    <span className="text-xs text-gray-600 dark:text-gray-400">
+                                      {indicator.examples.join(', ')}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
-                              <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {indicator.description}
-                              </p>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
 
                         {/* Vocabulary Analysis */}
                         <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                          <h5 className="font-medium text-gray-900 dark:text-white mb-2">Vocabulary Analysis</h5>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                            <div>
-                              <span className="font-medium text-gray-800 dark:text-gray-200">Complexity: </span>
-                              <span className="text-gray-600 dark:text-gray-400">{parsedAnalysis.vocabulary_analysis.complexity}</span>
+                          <h5 className="font-medium text-gray-900 dark:text-white mb-3">Vocabulary Analysis</h5>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <div>
+                                <span className="font-medium text-gray-800 dark:text-gray-200">Complexity: </span>
+                                <Badge color={parsedAnalysis.vocabulary_analysis.complexity === 'tinggi' ? 'error' : 'warning'} size="sm">
+                                  {parsedAnalysis.vocabulary_analysis.complexity}
+                                </Badge>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-800 dark:text-gray-200">Sentence Structure: </span>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                  {parsedAnalysis.vocabulary_analysis.sentence_structure}
+                                </p>
+                              </div>
                             </div>
                             <div>
                               <span className="font-medium text-gray-800 dark:text-gray-200">Technical Terms: </span>
-                              <span className="text-gray-600 dark:text-gray-400">
-                                {parsedAnalysis.vocabulary_analysis.technical_terms.join(', ')}
-                              </span>
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {parsedAnalysis.vocabulary_analysis.technical_terms.map((term, index) => (
+                                  <Badge key={index} color="info" size="sm">
+                                    {term}
+                                  </Badge>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         </div>
 
                         {/* Writing Style */}
                         <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                          <h5 className="font-medium text-gray-900 dark:text-white mb-2">Writing Style</h5>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                          <h5 className="font-medium text-gray-900 dark:text-white mb-3">Writing Style</h5>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="text-center">
+                              <span className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Formality</span>
+                              <Badge color="info" size="sm">{parsedAnalysis.writing_style.formality}</Badge>
+                            </div>
+                            <div className="text-center">
+                              <span className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Flow</span>
+                              <Badge color="info" size="sm">{parsedAnalysis.writing_style.flow}</Badge>
+                            </div>
+                            <div className="text-center">
+                              <span className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Coherence</span>
+                              <Badge color="success" size="sm">{parsedAnalysis.writing_style.coherence}</Badge>
+                            </div>
+                          </div>
+
+                          {/* AI and Human Markers */}
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                              <span className="font-medium text-gray-800 dark:text-gray-200">Formality: </span>
-                              <span className="text-gray-600 dark:text-gray-400">{parsedAnalysis.writing_style.formality}</span>
+                              <span className="font-medium text-red-600 dark:text-red-400">AI Markers:</span>
+                              <ul className="mt-1 text-sm text-gray-600 dark:text-gray-400 list-disc list-inside">
+                                {parsedAnalysis.writing_style.ai_markers.map((marker, index) => (
+                                  <li key={index}>{marker}</li>
+                                ))}
+                              </ul>
                             </div>
                             <div>
-                              <span className="font-medium text-gray-800 dark:text-gray-200">Flow: </span>
-                              <span className="text-gray-600 dark:text-gray-400">{parsedAnalysis.writing_style.flow}</span>
-                            </div>
-                            <div>
-                              <span className="font-medium text-gray-800 dark:text-gray-200">Coherence: </span>
-                              <span className="text-gray-600 dark:text-gray-400">{parsedAnalysis.writing_style.coherence}</span>
+                              <span className="font-medium text-green-600 dark:text-green-400">Human Markers:</span>
+                              {parsedAnalysis.writing_style.human_markers.length > 0 ? (
+                                <ul className="mt-1 text-sm text-gray-600 dark:text-gray-400 list-disc list-inside">
+                                  {parsedAnalysis.writing_style.human_markers.map((marker, index) => (
+                                    <li key={index}>{marker}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-500 italic">No human markers detected</p>
+                              )}
                             </div>
                           </div>
                         </div>
 
                         {/* Conclusion */}
-                        <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                          <h5 className="font-medium text-gray-900 dark:text-white mb-2">Conclusion</h5>
-                          <div className="space-y-2 text-sm">
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-600 p-6 rounded-lg">
+                          <h5 className="font-medium text-gray-900 dark:text-white mb-3">Conclusion</h5>
+                          <div className="space-y-4">
                             <div>
                               <span className="font-medium text-gray-800 dark:text-gray-200">Primary Reason: </span>
-                              <p className="text-gray-600 dark:text-gray-400">{parsedAnalysis.conclusion.primary_reason}</p>
+                              <p className="text-gray-700 dark:text-gray-300 mt-1 leading-relaxed">
+                                {parsedAnalysis.conclusion.primary_reason}
+                              </p>
                             </div>
                             <div>
                               <span className="font-medium text-gray-800 dark:text-gray-200">Confidence Explanation: </span>
-                              <p className="text-gray-600 dark:text-gray-400">{parsedAnalysis.conclusion.confidence_explanation}</p>
+                              <p className="text-gray-700 dark:text-gray-300 mt-1 leading-relaxed">
+                                {parsedAnalysis.conclusion.confidence_explanation}
+                              </p>
                             </div>
+                            {parsedAnalysis.conclusion.recommendation && (
+                              <div>
+                                <span className="font-medium text-gray-800 dark:text-gray-200">Recommendation: </span>
+                                <p className="text-gray-700 dark:text-gray-300 mt-1 leading-relaxed">
+                                  {parsedAnalysis.conclusion.recommendation}
+                                </p>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -456,8 +556,8 @@ export default function BasicTableOne() {
               )}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </>
   );
 }
