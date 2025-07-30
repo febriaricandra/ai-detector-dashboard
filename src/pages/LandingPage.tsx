@@ -20,8 +20,8 @@ type AnalysisResult = {
     reason: string;
     prediction: string;
     confidence: {
-        ai_probability: number;
-        human_probability: number;
+        ai: number;
+        human: number;
     };
 };
 
@@ -34,6 +34,9 @@ const AIDetectorLanding = () => {
     const [error, setError] = useState<string>('');
     const [uploadedFileName, setUploadedFileName] = useState<string>('');
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+
+
 
     const handleAnalyze = async () => {
         if (!textInput.trim() || !user) {
@@ -50,8 +53,9 @@ const AIDetectorLanding = () => {
             });
 
             // Transform response data to match our AnalysisResult interface
-            const aiPercentage = Math.round((response.data.flask_confidence?.ai_probability || 0) * 100);
-            const humanPercentage = 100 - aiPercentage;
+            // Updated to use the correct property names: ai and human instead of ai_probability and human_probability
+            const aiPercentage = Math.round((response.data.flask_confidence?.ai || 0) * 100);
+            const humanPercentage = Math.round((response.data.flask_confidence?.human || 0) * 100);
 
             // Extract reason from gemini_analysis if available
             let reason = "Analysis completed successfully";
@@ -97,8 +101,6 @@ const AIDetectorLanding = () => {
         }
     };
 
-
-
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file || !user) {
@@ -132,19 +134,17 @@ const AIDetectorLanding = () => {
 
             console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
 
-            // Make the API call with explicit multipart form data handling
+            // Remove Content-Type header for FormData uploads
             const response = await Api.post('/analysis-results/analyze-text-pdf', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
                 timeout: 60000, // 60 seconds timeout
             });
 
             console.log('Upload response:', response.data);
 
             // Transform response data to match our AnalysisResult interface
-            const aiPercentage = Math.round((response.data.flask_confidence?.ai_probability || 0) * 100);
-            const humanPercentage = 100 - aiPercentage;
+            // Updated to use the correct property names: ai and human instead of ai_probability and human_probability
+            const aiPercentage = Math.round((response.data.flask_confidence?.ai || 0) * 100);
+            const humanPercentage = Math.round((response.data.flask_confidence?.human || 0) * 100);
 
             // Extract reason from gemini_analysis if available
             let reason = "PDF analysis completed successfully";
@@ -204,7 +204,6 @@ const AIDetectorLanding = () => {
             }
         }
     };
-
 
     const handleUploadClick = () => {
         if (!user) {
