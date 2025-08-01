@@ -472,7 +472,7 @@ const AIDetectorLanding = () => {
 
                                     <div className="flex mb-6">
                                         {/* Donut Chart */}
-                                        <div className="w-44 h-44 mx-auto relative">
+                                        <div className="w-54 h-54 mx-auto relative">
                                             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                                                 <circle
                                                     cx="50"
