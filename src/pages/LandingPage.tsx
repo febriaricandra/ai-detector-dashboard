@@ -435,7 +435,7 @@ const AIDetectorLanding = () => {
 
                                     <div className="flex mb-6">
                                         {/* Donut Chart */}
-                                        <div className=" w-44 h-44 mx-auto relative">
+                                        <div className="w-44 h-44 mx-auto relative">
                                             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                                                 <circle
                                                     cx="50"
@@ -467,6 +467,18 @@ const AIDetectorLanding = () => {
                                                     strokeLinecap="round"
                                                 />
                                             </svg>
+                                            
+                                            {/* Center percentage display */}
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <div className="text-center">
+                                                    <div className="text-2xl font-bold text-gray-900">
+                                                        {analysisResult.prediction === 'AI' ? analysisResult.aiPercentage : analysisResult.humanPercentage}%
+                                                    </div>
+                                                    <div className="text-sm text-gray-600">
+                                                        {analysisResult.prediction}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         {/* Percentages */}
@@ -485,6 +497,18 @@ const AIDetectorLanding = () => {
                                                     <h2 className="text-lg font-bold text-green-900">Human Written</h2>
                                                 </div>
                                             </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Legend with colored dots */}
+                                    <div className="flex justify-center gap-6 mb-6">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                                            <span className="text-sm font-medium text-gray-700">AI Generated</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                                            <span className="text-sm font-medium text-gray-700">Human Written</span>
                                         </div>
                                     </div>
 
