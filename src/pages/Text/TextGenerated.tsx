@@ -7,8 +7,8 @@ export default function TextGenerated() {
   return (
     <>
       <PageMeta
-        title="React.js Text Generated Dashboard | TailAdmin - Next.js Admin Dashboard Template"
-        description="This is React.js Text Generated Dashboard page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="AI Detector Dashboard | Text Generated"
+        description="This is AI Detector Dashboard page for Text Generated"
       />
       <PageBreadcrumb pageTitle="Text Generated" />
       <div className="space-y-6">

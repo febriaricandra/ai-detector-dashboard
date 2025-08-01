@@ -102,11 +102,20 @@ const AIDetectorLanding = () => {
     };
 
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        console.log('handleFileUpload called:', event.target.files);
+        
         const file = event.target.files?.[0];
-        if (!file || !user) {
-            if (!user) {
-                setError('Please login to upload files');
-            }
+        console.log('Selected file:', file);
+        
+        if (!file) {
+            console.log('No file selected');
+            setError('No file uploaded. Please select a file.');
+            return;
+        }
+        
+        if (!user) {
+            console.log('User not logged in');
+            setError('Please login to upload files');
             return;
         }
 
@@ -134,10 +143,16 @@ const AIDetectorLanding = () => {
 
             console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
 
-            // Remove Content-Type header for FormData uploads
-            const response = await Api.post('/analysis-results/analyze-text-pdf', formData, {
+            // Create custom config for FormData upload - remove Content-Type header
+            const config = {
                 timeout: 60000, // 60 seconds timeout
-            });
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    // Don't set Content-Type - let browser set it with boundary for FormData
+                }
+            };
+
+            const response = await Api.post('/analysis-results/analyze-text-pdf', formData, config);
 
             console.log('Upload response:', response.data);
 
@@ -184,13 +199,20 @@ const AIDetectorLanding = () => {
             } else if (apiError.response?.status === 413) {
                 setError('File too large. Please upload a file smaller than 2MB');
             } else if (apiError.response?.status === 400) {
-                setError(apiError.response.data?.message || 'Invalid file. Please check if the file is a valid PDF');
+                const errorMessage = apiError.response.data?.message;
+                if (errorMessage && errorMessage.includes('No file uploaded')) {
+                    setError('No file was received by server. Please try selecting the file again.');
+                } else {
+                    setError(errorMessage || 'Invalid file. Please check if the file is a valid PDF');
+                }
             } else if (apiError.response?.status === 500) {
                 setError('Server error during PDF analysis. Please try again later.');
             } else if (apiError.response?.data?.message) {
                 setError(apiError.response.data.message);
             } else if (apiError.message?.includes('timeout')) {
                 setError('Upload timeout. Please try with a smaller file.');
+            } else if (apiError.message?.includes('Network Error')) {
+                setError('Network error. Please check your connection and try again.');
             } else if (apiError.message) {
                 setError(apiError.message);
             } else {
@@ -210,6 +232,14 @@ const AIDetectorLanding = () => {
             setError('Please login to upload files');
             return;
         }
+        
+        // Clear previous errors and results
+        setError('');
+        setAnalysisResult(null);
+        
+        // Debug: Check if file input ref exists
+        console.log('File input ref:', fileInputRef.current);
+        
         fileInputRef.current?.click();
     };
 
@@ -370,8 +400,12 @@ const AIDetectorLanding = () => {
                                 ref={fileInputRef}
                                 type="file"
                                 accept=".pdf"
-                                onChange={handleFileUpload}
+                                onChange={(e) => {
+                                    console.log('File input change event:', e.target.files);
+                                    handleFileUpload(e);
+                                }}
                                 className="hidden"
+                                key={uploadedFileName ? 'file-uploaded' : 'no-file'}
                             />
 
                             <div className="flex flex-wrap gap-3">
@@ -418,11 +452,11 @@ const AIDetectorLanding = () => {
                         <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
                             <div className="flex items-center justify-between mb-6">
                                 <h2 className="text-2xl font-bold text-gray-900">Result</h2>
-                                <button className="text-gray-400 hover:text-gray-600">
+                                {/* <button className="text-gray-400 hover:text-gray-600">
                                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                                     </svg>
-                                </button>
+                                </button> */}
                             </div>
 
                             {isAnalyzing ? (
