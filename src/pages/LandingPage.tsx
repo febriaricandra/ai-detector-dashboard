@@ -103,16 +103,16 @@ const AIDetectorLanding = () => {
 
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         console.log('handleFileUpload called:', event.target.files);
-        
+
         const file = event.target.files?.[0];
         console.log('Selected file:', file);
-        
+
         if (!file) {
             console.log('No file selected');
             setError('No file uploaded. Please select a file.');
             return;
         }
-        
+
         if (!user) {
             console.log('User not logged in');
             setError('Please login to upload files');
@@ -232,14 +232,14 @@ const AIDetectorLanding = () => {
             setError('Please login to upload files');
             return;
         }
-        
+
         // Clear previous errors and results
         setError('');
         setAnalysisResult(null);
-        
+
         // Debug: Check if file input ref exists
         console.log('File input ref:', fileInputRef.current);
-        
+
         fileInputRef.current?.click();
     };
 
@@ -504,7 +504,7 @@ const AIDetectorLanding = () => {
                                                     strokeLinecap="round"
                                                 />
                                             </svg>
-                                            
+
                                             {/* Center percentage display */}
                                             <div className="absolute inset-0 flex items-center justify-center">
                                                 <div className="text-center">
@@ -582,11 +582,10 @@ const AIDetectorLanding = () => {
             <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
                 <div className="max-w-4xl mx-auto text-center">
                     <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-6">
-                        We invest in the world's potential
+                        Safeguarding the Future of Writing
                     </h2>
                     <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-                        Here at flowbite we focus on markets where technology, innovation, and capital
-                        can unlock long-term value and drive economic growth.
+                        AI text detection tools designed to support fair and responsible use of language technologies in education, research, and writing.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <Link

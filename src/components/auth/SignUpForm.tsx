@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { Play } from "lucide-react";
 import Button from "../ui/button/Button";
 import Api from "../../utils/Api";
 
@@ -103,9 +104,9 @@ export default function SignUpForm() {
         if (response.data.user) {
           localStorage.setItem('user', JSON.stringify(response.data.user));
         }
-        // Redirect to dashboard after a short delay
+        // Redirect to text analysis page after a short delay
         setTimeout(() => {
-          navigate('/dashboard');
+          navigate('/text-generated');
         }, 2000);
       } else {
         // Redirect to sign in page after a short delay
@@ -147,11 +148,19 @@ export default function SignUpForm() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-2">
+      <div className="text-center">
+        {/* Logo */}
+        <div className="flex items-center justify-center space-x-2 mb-6">
+          <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+            <Play className="w-5 h-5 text-white" />
+          </div>
+          <span className="text-xl font-bold text-gray-900 dark:text-white">AI Detector</span>
+        </div>
+        
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
           Sign Up
         </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
           Enter your details to create your account
         </p>
       </div>
