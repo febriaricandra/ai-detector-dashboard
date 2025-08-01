@@ -286,6 +286,38 @@ export default function BasicTableOne() {
     }
   };
 
+  // Function to delete analysis result
+  const handleDeleteResult = async (id: number) => {
+    // Show confirmation dialog
+    const isConfirmed = window.confirm('Are you sure you want to delete this analysis result? This action cannot be undone.');
+    
+    if (!isConfirmed) {
+      return;
+    }
+
+    try {
+      // Call the delete API endpoint
+      await Api.delete(`/analysis-results/${id}`);
+      
+      // Remove the deleted item from the local state
+      setAnalysisResults(prevResults => prevResults.filter(result => result.id !== id));
+      
+      console.log('Analysis result deleted successfully:', id);
+      
+      // Show success message (optional)
+      alert('Analysis result deleted successfully.');
+    } catch (error) {
+      console.error('Error deleting analysis result:', error);
+      
+      // Show error message to user
+      if (error instanceof Error) {
+        alert(`Failed to delete analysis result: ${error.message}`);
+      } else {
+        alert('Failed to delete analysis result. Please try again.');
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
@@ -448,8 +480,7 @@ export default function BasicTableOne() {
                               className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700"
                               onClick={() => {
                                 handleMenuClose();
-                                // Handle delete
-                                console.log('Delete result:', result.id);
+                                handleDeleteResult(result.id);
                               }}
                             >
                               Delete
