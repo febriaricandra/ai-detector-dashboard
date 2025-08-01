@@ -38,8 +38,8 @@ export default function SignInForm() {
         password: formData.password,
       });
 
-      // Redirect to dashboard or home page
-      navigate('/dashboard');
+      // Redirect to text analysis page
+      navigate('/text-generated');
       
     } catch (err: unknown) {
       // Handle different error scenarios

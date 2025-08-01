@@ -6,7 +6,6 @@ import { Play } from "lucide-react";
 import {
   BoxCubeIcon,
   ChevronDownIcon,
-  GridIcon,
   HorizontaLDots,
   PieChartIcon,
   PlugInIcon,
@@ -22,11 +21,6 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  {
-    icon: <GridIcon />,
-    name: "Dashboard",
-    subItems: [{ name: "Usage Charts", path: "/dashboard", pro: false }],
-  },
   {
     icon: <FileIcon />,
     name: "Text Generated",

@@ -17,7 +17,6 @@ import FormElements from "./pages/Forms/FormElements";
 import Blank from "./pages/Blank";
 import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
-import Home from "./pages/Dashboard/Home";
 import LandingPage from "./pages/LandingPage";
 import TextGenerated from "./pages/Text/TextGenerated";
 
@@ -35,8 +34,6 @@ export default function App() {
           
           {/* Dashboard Layout */}
           <Route element={<AppLayout />}>
-            <Route path="/dashboard" element={<Home />} />
-
             {/* Others Page */}
             <Route path="/profile" element={<UserProfiles />} />
             <Route path="/calendar" element={<Calendar />} />

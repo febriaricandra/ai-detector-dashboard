@@ -26,7 +26,7 @@ type AnalysisResult = {
 };
 
 const AIDetectorLanding = () => {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const [textInput, setTextInput] = useState<string>('');
     const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -237,7 +237,6 @@ const AIDetectorLanding = () => {
                         </div>
                         <div className="hidden md:flex items-center space-x-8">
                             <a href="#detector" className="text-gray-700 hover:text-blue-600 font-medium">AI Detector</a>
-                            <a href="#about" className="text-gray-700 hover:text-blue-600 font-medium">About</a>
                         </div>
                         <div className="hidden md:flex items-center space-x-4">
                             {user ? (
@@ -254,14 +253,18 @@ const AIDetectorLanding = () => {
                                     {isDropdownOpen && (
                                         <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
                                             <Link
-                                                to="/dashboard"
+                                                to="/text-generated"
                                                 className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                                 onClick={() => setIsDropdownOpen(false)}
                                             >
-                                                Dashboard
+                                                Text Analysis
                                             </Link>
                                             <button
                                                 className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                                onClick={() => {
+                                                    setIsDropdownOpen(false);
+                                                    logout();
+                                                }}
                                             >
                                                 Logout
                                             </button>
