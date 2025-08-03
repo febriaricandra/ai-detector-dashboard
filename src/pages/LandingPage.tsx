@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { Play, ChevronDown, Upload, Shield, FileText, BarChart3, Users } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import Api from '../utils/Api';
+import PageMeta from '../components/common/PageMeta';
 
 interface ApiError {
     response?: {
@@ -255,6 +256,10 @@ const AIDetectorLanding = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+            <PageMeta 
+                title="AI Detector - Professional AI Content Detection Tool" 
+                description="Detect AI-generated content with our advanced AI detector. Ensure originality and authenticity in your professional writing, reports, and documents. Upload PDF files or paste text for instant analysis."
+            />
             {/* Navigation */}
             <nav className="bg-white/90 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
