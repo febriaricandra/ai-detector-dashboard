@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { Play, ChevronDown, Upload, Shield, FileText, BarChart3, Users } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import Api from '../utils/Api';
+import PageMeta from '../components/common/PageMeta';
 
 interface ApiError {
     response?: {
@@ -26,7 +27,7 @@ type AnalysisResult = {
 };
 
 const AIDetectorLanding = () => {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const [textInput, setTextInput] = useState<string>('');
     const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -102,11 +103,20 @@ const AIDetectorLanding = () => {
     };
 
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        console.log('handleFileUpload called:', event.target.files);
+
         const file = event.target.files?.[0];
-        if (!file || !user) {
-            if (!user) {
-                setError('Please login to upload files');
-            }
+        console.log('Selected file:', file);
+
+        if (!file) {
+            console.log('No file selected');
+            setError('No file uploaded. Please select a file.');
+            return;
+        }
+
+        if (!user) {
+            console.log('User not logged in');
+            setError('Please login to upload files');
             return;
         }
 
@@ -134,10 +144,16 @@ const AIDetectorLanding = () => {
 
             console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
 
-            // Remove Content-Type header for FormData uploads
-            const response = await Api.post('/analysis-results/analyze-text-pdf', formData, {
+            // Create custom config for FormData upload - remove Content-Type header
+            const config = {
                 timeout: 60000, // 60 seconds timeout
-            });
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    // Don't set Content-Type - let browser set it with boundary for FormData
+                }
+            };
+
+            const response = await Api.post('/analysis-results/analyze-text-pdf', formData, config);
 
             console.log('Upload response:', response.data);
 
@@ -184,13 +200,20 @@ const AIDetectorLanding = () => {
             } else if (apiError.response?.status === 413) {
                 setError('File too large. Please upload a file smaller than 2MB');
             } else if (apiError.response?.status === 400) {
-                setError(apiError.response.data?.message || 'Invalid file. Please check if the file is a valid PDF');
+                const errorMessage = apiError.response.data?.message;
+                if (errorMessage && errorMessage.includes('No file uploaded')) {
+                    setError('No file was received by server. Please try selecting the file again.');
+                } else {
+                    setError(errorMessage || 'Invalid file. Please check if the file is a valid PDF');
+                }
             } else if (apiError.response?.status === 500) {
                 setError('Server error during PDF analysis. Please try again later.');
             } else if (apiError.response?.data?.message) {
                 setError(apiError.response.data.message);
             } else if (apiError.message?.includes('timeout')) {
                 setError('Upload timeout. Please try with a smaller file.');
+            } else if (apiError.message?.includes('Network Error')) {
+                setError('Network error. Please check your connection and try again.');
             } else if (apiError.message) {
                 setError(apiError.message);
             } else {
@@ -210,6 +233,14 @@ const AIDetectorLanding = () => {
             setError('Please login to upload files');
             return;
         }
+
+        // Clear previous errors and results
+        setError('');
+        setAnalysisResult(null);
+
+        // Debug: Check if file input ref exists
+        console.log('File input ref:', fileInputRef.current);
+
         fileInputRef.current?.click();
     };
 
@@ -225,6 +256,12 @@ const AIDetectorLanding = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+            <PageMeta 
+                title="AI Detector - Professional AI Content Detection Tool" 
+                description="Detect AI-generated content with our advanced AI detector. Ensure originality and authenticity in your professional writing, reports, and documents. Upload PDF files or paste text for instant analysis."
+            />
+            {/* Custom favicon to match navigation logo */}
+            <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3e%3ccircle cx='20' cy='20' r='20' fill='%232563eb'/%3e%3cpath d='M15 13l10 7-10 7V13z' fill='white'/%3e%3c/svg%3e" />
             {/* Navigation */}
             <nav className="bg-white/90 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -237,7 +274,6 @@ const AIDetectorLanding = () => {
                         </div>
                         <div className="hidden md:flex items-center space-x-8">
                             <a href="#detector" className="text-gray-700 hover:text-blue-600 font-medium">AI Detector</a>
-                            <a href="#about" className="text-gray-700 hover:text-blue-600 font-medium">About</a>
                         </div>
                         <div className="hidden md:flex items-center space-x-4">
                             {user ? (
@@ -254,14 +290,18 @@ const AIDetectorLanding = () => {
                                     {isDropdownOpen && (
                                         <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
                                             <Link
-                                                to="/dashboard"
+                                                to="/text-generated"
                                                 className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                                 onClick={() => setIsDropdownOpen(false)}
                                             >
-                                                Dashboard
+                                                Text Analysis
                                             </Link>
                                             <button
                                                 className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                                onClick={() => {
+                                                    setIsDropdownOpen(false);
+                                                    logout();
+                                                }}
                                             >
                                                 Logout
                                             </button>
@@ -367,8 +407,12 @@ const AIDetectorLanding = () => {
                                 ref={fileInputRef}
                                 type="file"
                                 accept=".pdf"
-                                onChange={handleFileUpload}
+                                onChange={(e) => {
+                                    console.log('File input change event:', e.target.files);
+                                    handleFileUpload(e);
+                                }}
                                 className="hidden"
+                                key={uploadedFileName ? 'file-uploaded' : 'no-file'}
                             />
 
                             <div className="flex flex-wrap gap-3">
@@ -415,11 +459,11 @@ const AIDetectorLanding = () => {
                         <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
                             <div className="flex items-center justify-between mb-6">
                                 <h2 className="text-2xl font-bold text-gray-900">Result</h2>
-                                <button className="text-gray-400 hover:text-gray-600">
+                                {/* <button className="text-gray-400 hover:text-gray-600">
                                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                                     </svg>
-                                </button>
+                                </button> */}
                             </div>
 
                             {isAnalyzing ? (
@@ -435,7 +479,7 @@ const AIDetectorLanding = () => {
 
                                     <div className="flex mb-6">
                                         {/* Donut Chart */}
-                                        <div className=" w-44 h-44 mx-auto relative">
+                                        <div className="w-54 h-54 mx-auto relative">
                                             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                                                 <circle
                                                     cx="50"
@@ -467,6 +511,18 @@ const AIDetectorLanding = () => {
                                                     strokeLinecap="round"
                                                 />
                                             </svg>
+
+                                            {/* Center percentage display */}
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <div className="text-center">
+                                                    <div className="text-2xl font-bold text-gray-900">
+                                                        {analysisResult.prediction === 'AI' ? analysisResult.aiPercentage : analysisResult.humanPercentage}%
+                                                    </div>
+                                                    <div className="text-sm text-gray-600">
+                                                        {analysisResult.prediction}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         {/* Percentages */}
@@ -485,6 +541,18 @@ const AIDetectorLanding = () => {
                                                     <h2 className="text-lg font-bold text-green-900">Human Written</h2>
                                                 </div>
                                             </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Legend with colored dots */}
+                                    <div className="flex justify-center gap-6 mb-6">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                                            <span className="text-sm font-medium text-gray-700">AI Generated</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                                            <span className="text-sm font-medium text-gray-700">Human Written</span>
                                         </div>
                                     </div>
 
@@ -521,11 +589,10 @@ const AIDetectorLanding = () => {
             <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
                 <div className="max-w-4xl mx-auto text-center">
                     <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-6">
-                        We invest in the world's potential
+                        Safeguarding the Future of Writing
                     </h2>
                     <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-                        Here at flowbite we focus on markets where technology, innovation, and capital
-                        can unlock long-term value and drive economic growth.
+                        AI text detection tools designed to support fair and responsible use of language technologies in education, research, and writing.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <Link

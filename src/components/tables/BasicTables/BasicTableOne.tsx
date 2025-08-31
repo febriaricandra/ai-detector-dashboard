@@ -10,6 +10,7 @@ import {
 import Badge from "../../ui/badge/Badge";
 import { Modal } from "../../ui/modal";
 import { useModal } from "../../../hooks/useModal";
+import jsPDF from 'jspdf';
 
 // Updated interface to match your actual API model
 interface AnalysisResultData {
@@ -142,6 +143,181 @@ export default function BasicTableOne() {
     return text.trim().split(/\s+/).length;
   };
 
+  // Function to export analysis result as PDF
+  const handleExportPDF = (result: AnalysisResultData) => {
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.width;
+      const margin = 20;
+      const maxWidth = pageWidth - 2 * margin;
+      let yPosition = margin;
+
+      // Helper function to add text with word wrapping
+      const addText = (text: string, fontSize: number = 10, isBold: boolean = false, color: string = 'black') => {
+        doc.setFontSize(fontSize);
+        if (isBold) {
+          doc.setFont('helvetica', 'bold');
+        } else {
+          doc.setFont('helvetica', 'normal');
+        }
+        
+        // Set text color
+        if (color === 'red') {
+          doc.setTextColor(220, 38, 38);
+        } else if (color === 'green') {
+          doc.setTextColor(16, 185, 129);
+        } else if (color === 'blue') {
+          doc.setTextColor(59, 130, 246);
+        } else {
+          doc.setTextColor(0, 0, 0);
+        }
+
+        const lines = doc.splitTextToSize(text, maxWidth);
+        lines.forEach((line: string) => {
+          if (yPosition > doc.internal.pageSize.height - margin) {
+            doc.addPage();
+            yPosition = margin;
+          }
+          doc.text(line, margin, yPosition);
+          yPosition += fontSize * 0.5;
+        });
+        yPosition += 5; // Add extra spacing after text block
+      };
+
+      // Add title
+      addText('AI Detector Analysis Report', 18, true, 'blue');
+      yPosition += 10;
+
+      // Add analysis date
+      addText(`Analysis Date: ${new Date(result.createdAt).toLocaleString()}`, 12);
+      
+      // Add basic information
+      addText('ANALYSIS SUMMARY', 14, true);
+      addText(`Prediction: ${result.flask_prediction}`, 12, true, result.flask_prediction === 'AI' ? 'red' : 'green');
+      
+      const percentages = getConfidencePercentages(result.flask_confidence);
+      addText(`AI Probability: ${percentages.ai}%`, 12);
+      addText(`Human Probability: ${percentages.human}%`, 12);
+      addText(`Word Count: ${countWords(result.text)}`, 12);
+
+      yPosition += 10;
+
+      // Add original text
+      addText('ORIGINAL TEXT', 14, true);
+      addText(result.text, 10);
+
+      yPosition += 10;
+
+      // Add detailed analysis if available
+      if (result.gemini_analysis) {
+        const parsedAnalysis = parseGeminiAnalysis(result.gemini_analysis.analysis);
+        if (parsedAnalysis) {
+          addText('DETAILED ANALYSIS', 14, true);
+          
+          // Linguistic Indicators
+          addText('Linguistic Indicators:', 12, true);
+          parsedAnalysis.linguistic_indicators.forEach((indicator, index) => {
+            addText(`${index + 1}. ${indicator.pattern} (${indicator.ai_likelihood})`, 10);
+            addText(`   ${indicator.description}`, 10);
+            if (indicator.examples && indicator.examples.length > 0) {
+              addText(`   Examples: ${indicator.examples.join(', ')}`, 9);
+            }
+          });
+
+          yPosition += 5;
+
+          // Vocabulary Analysis
+          addText('Vocabulary Analysis:', 12, true);
+          addText(`Complexity: ${parsedAnalysis.vocabulary_analysis.complexity}`, 10);
+          addText(`Sentence Structure: ${parsedAnalysis.vocabulary_analysis.sentence_structure}`, 10);
+          if (parsedAnalysis.vocabulary_analysis.technical_terms.length > 0) {
+            addText(`Technical Terms: ${parsedAnalysis.vocabulary_analysis.technical_terms.join(', ')}`, 10);
+          }
+
+          yPosition += 5;
+
+          // Writing Style
+          addText('Writing Style:', 12, true);
+          addText(`Formality: ${parsedAnalysis.writing_style.formality}`, 10);
+          addText(`Flow: ${parsedAnalysis.writing_style.flow}`, 10);
+          addText(`Coherence: ${parsedAnalysis.writing_style.coherence}`, 10);
+          
+          if (parsedAnalysis.writing_style.ai_markers.length > 0) {
+            addText('AI Markers:', 10, true, 'red');
+            parsedAnalysis.writing_style.ai_markers.forEach(marker => {
+              addText(`• ${marker}`, 9);
+            });
+          }
+
+          if (parsedAnalysis.writing_style.human_markers.length > 0) {
+            addText('Human Markers:', 10, true, 'green');
+            parsedAnalysis.writing_style.human_markers.forEach(marker => {
+              addText(`• ${marker}`, 9);
+            });
+          }
+
+          yPosition += 5;
+
+          // Conclusion
+          addText('CONCLUSION', 12, true);
+          addText(`Primary Reason: ${parsedAnalysis.conclusion.primary_reason}`, 10);
+          addText(`Confidence Explanation: ${parsedAnalysis.conclusion.confidence_explanation}`, 10);
+          if (parsedAnalysis.conclusion.recommendation) {
+            addText(`Recommendation: ${parsedAnalysis.conclusion.recommendation}`, 10);
+          }
+        }
+      }
+
+      // Add footer
+      yPosition = doc.internal.pageSize.height - 30;
+      doc.setTextColor(128, 128, 128);
+      doc.setFontSize(8);
+      doc.text('Generated by AI Detector Dashboard', margin, yPosition);
+      doc.text(`Report ID: ${result.id}`, margin, yPosition + 10);
+
+      // Save the PDF
+      const fileName = `ai-analysis-${result.id}-${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
+      
+      console.log('PDF exported successfully:', fileName);
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      alert('Failed to export PDF. Please try again.');
+    }
+  };
+
+  // Function to delete analysis result
+  const handleDeleteResult = async (id: number) => {
+    // Show confirmation dialog
+    const isConfirmed = window.confirm('Are you sure you want to delete this analysis result? This action cannot be undone.');
+    
+    if (!isConfirmed) {
+      return;
+    }
+
+    try {
+      // Call the delete API endpoint
+      await Api.delete(`/analysis-results/${id}`);
+      
+      // Remove the deleted item from the local state
+      setAnalysisResults(prevResults => prevResults.filter(result => result.id !== id));
+      
+      console.log('Analysis result deleted successfully:', id);
+      
+      // Show success message (optional)
+      alert('Analysis result deleted successfully.');
+    } catch (error) {
+      console.error('Error deleting analysis result:', error);
+      
+      // Show error message to user
+      if (error instanceof Error) {
+        alert(`Failed to delete analysis result: ${error.message}`);
+      } else {
+        alert('Failed to delete analysis result. Please try again.');
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
@@ -242,9 +418,9 @@ export default function BasicTableOne() {
                       <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                         <div className="space-y-2">
                           {/* AI Probability */}
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-red-600 w-8">AI:</span>
-                            <span className="text-xs font-semibold w-10">{percentages.ai}%</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-medium text-red-600 w-12">AI:</span>
+                            <span className="text-xs font-semibold w-12">{percentages.ai}%</span>
                             <div className="w-16 bg-gray-200 rounded-full h-1.5 dark:bg-gray-700">
                               <div
                                 className="bg-red-500 h-1.5 rounded-full"
@@ -253,9 +429,9 @@ export default function BasicTableOne() {
                             </div>
                           </div>
                           {/* Human Probability */}
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-green-600 w-8">Human:</span>
-                            <span className="text-xs font-semibold w-10">{percentages.human}%</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-medium text-green-600 w-12">Human:</span>
+                            <span className="text-xs font-semibold w-12">{percentages.human}%</span>
                             <div className="w-16 bg-gray-200 rounded-full h-1.5 dark:bg-gray-700">
                               <div
                                 className="bg-green-500 h-1.5 rounded-full"
@@ -295,18 +471,16 @@ export default function BasicTableOne() {
                               className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                               onClick={() => {
                                 handleMenuClose();
-                                // Handle export
-                                console.log('Export result:', result);
+                                handleExportPDF(result);
                               }}
                             >
-                              Export
+                              Export PDF
                             </button>
                             <button
                               className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700"
                               onClick={() => {
                                 handleMenuClose();
-                                // Handle delete
-                                console.log('Delete result:', result.id);
+                                handleDeleteResult(result.id);
                               }}
                             >
                               Delete
