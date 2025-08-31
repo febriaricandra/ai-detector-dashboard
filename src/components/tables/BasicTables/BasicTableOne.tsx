@@ -357,7 +357,7 @@ export default function BasicTableOne() {
 
               {/* Flask Analysis */}
               <div>
-                <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Flask Analysis</h4>
+                <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Analysis</h4>
                 <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                   <div className="flex items-center justify-between mb-4">
                     <span className="text-gray-700 dark:text-gray-300 font-medium">Prediction:</span>
