@@ -420,7 +420,6 @@ export default function BasicTableOne() {
                           {/* AI Probability */}
                           <div className="flex items-center gap-3">
                             <span className="text-xs font-medium text-red-600 w-12">AI:</span>
-                            <span className="text-xs font-semibold w-12">{percentages.ai}%</span>
                             <div className="w-16 bg-gray-200 rounded-full h-1.5 dark:bg-gray-700">
                               <div
                                 className="bg-red-500 h-1.5 rounded-full"
@@ -431,7 +430,6 @@ export default function BasicTableOne() {
                           {/* Human Probability */}
                           <div className="flex items-center gap-3">
                             <span className="text-xs font-medium text-green-600 w-12">Human:</span>
-                            <span className="text-xs font-semibold w-12">{percentages.human}%</span>
                             <div className="w-16 bg-gray-200 rounded-full h-1.5 dark:bg-gray-700">
                               <div
                                 className="bg-green-500 h-1.5 rounded-full"
