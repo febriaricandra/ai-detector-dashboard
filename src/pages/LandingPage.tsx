@@ -511,18 +511,7 @@ const AIDetectorLanding = () => {
                                                     strokeLinecap="round"
                                                 />
                                             </svg>
-
-                                            {/* Center percentage display */}
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <div className="text-center">
-                                                    <div className="text-2xl font-bold text-gray-900">
-                                                        {analysisResult.prediction === 'AI' ? analysisResult.aiPercentage : analysisResult.humanPercentage}%
-                                                    </div>
-                                                    <div className="text-sm text-gray-600">
-                                                        {analysisResult.prediction}
-                                                    </div>
-                                                </div>
-                                            </div>
+                                            {/* Persentase dan teks di dalam lingkaran dihapus */}
                                         </div>
 
                                         {/* Percentages */}
